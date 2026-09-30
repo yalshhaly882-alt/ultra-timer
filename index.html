@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0D1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ultra Timer">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/icons/favicon.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<title>Ultra Timer | مؤقت</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@500;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F2F4F7;
+    --panel: #FFFFFF;
+    --panel-2: #E8ECF1;
+    --ink: #121A24;
+    --muted: #5B6778;
+    --line: #D5DBE3;
+    --accent: #0D8C83;
+    --accent-ink: #FFFFFF;
+    --alert: #D8432F;
+    --digits: #0E1620;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0D1117;
+      --panel: #151B24;
+      --panel-2: #1D2530;
+      --ink: #E8EEF3;
+      --muted: #8B98A9;
+      --line: #263040;
+      --accent: #3AD1C4;
+      --accent-ink: #06201D;
+      --alert: #FF6B5A;
+      --digits: #F1F6F9;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0D1117;
+    --panel: #151B24;
+    --panel-2: #1D2530;
+    --ink: #E8EEF3;
+    --muted: #8B98A9;
+    --line: #263040;
+    --accent: #3AD1C4;
+    --accent-ink: #06201D;
+    --alert: #FF6B5A;
+    --digits: #F1F6F9;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+  body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Tajawal", "Segoe UI", Tahoma, system-ui, sans-serif;
+    line-height: 1.6;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+  .wrap { max-width: 880px; margin: 0 auto; padding: 20px 16px 32px; }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  header h1 { margin: 0; font-size: 1.15rem; font-weight: 700; }
+  header span { color: var(--muted); font-size: .9rem; }
+
+  /* Mode switch */
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .mode {
+    text-align: start; cursor: pointer;
+    background: var(--panel); border: 2px solid var(--line); border-radius: 14px;
+    padding: 14px 16px; transition: border-color .15s, background .15s;
+  }
+  .mode b { display: block; font-size: 1.05rem; }
+  .mode small { color: var(--muted); font-size: .85rem; }
+  .mode[aria-pressed="true"] { border-color: var(--accent); background: var(--panel-2); }
+
+  /* Stage */
+  .stage {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 22px;
+    padding: 28px 16px 24px; text-align: center;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+  }
+  .stage:fullscreen { border-radius: 0; border: 0; background: var(--bg); padding: 4vh 4vw; gap: 5vh; }
+  .stage:-webkit-full-screen { border-radius: 0; border: 0; background: var(--bg); padding: 4vh 4vw; gap: 5vh; }
+
+  .label { color: var(--muted); font-size: .95rem; min-height: 1.6em; }
+
+  .clock {
+    direction: ltr;
+    font-family: "Oxanium", "Consolas", "Courier New", monospace;
+    font-weight: 700;
+    font-size: clamp(3.2rem, 17vw, 9rem);
+    line-height: 1;
+    letter-spacing: .02em;
+    color: var(--digits);
+    font-variant-numeric: tabular-nums;
+    transition: color .2s;
+  }
+  .stage:fullscreen .clock { font-size: min(24vw, 42vh); }
+  .stage:-webkit-full-screen .clock { font-size: min(24vw, 42vh); }
+  .clock.running { color: var(--accent); }
+  .clock.done { color: var(--alert); animation: blink .7s steps(2, start) 6; }
+  @keyframes blink { 50% { opacity: .25; } }
+
+  /* Countdown setter */
+  .setter { display: none; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; direction: ltr; }
+  .setter.show { display: flex; }
+  .field { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .field input {
+    width: 76px; text-align: center; font-family: "Oxanium", monospace; font-size: 1.6rem; font-weight: 700;
+    background: var(--panel-2); border: 2px solid var(--line); border-radius: 12px; padding: 8px 4px;
+  }
+  .field span { font-size: .8rem; color: var(--muted); direction: rtl; }
+  .sep { font-family: "Oxanium", monospace; font-size: 1.6rem; color: var(--muted); padding-bottom: 22px; }
+  .set-btn { direction: rtl; margin-inline-start: 8px; margin-bottom: 22px; }
+
+  /* Buttons */
+  .controls { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .btn {
+    cursor: pointer; border: 2px solid var(--line); background: var(--panel-2);
+    border-radius: 14px; padding: 12px 22px; font-weight: 700; min-width: 120px;
+    transition: transform .08s, border-color .15s;
+  }
+  .btn:active { transform: scale(.97); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .btn.stop { border-color: var(--alert); color: var(--alert); background: transparent; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .stage:fullscreen .btn { padding: 2vh 3vw; font-size: 1.2rem; }
+
+  /* Tools */
+  .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .tool {
+    text-align: start; cursor: pointer; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px 16px;
+  }
+  .tool:hover { border-color: var(--accent); }
+  .tool b { display: block; }
+  .tool small { color: var(--muted); font-size: .85rem; }
+  .note { margin-top: 10px; min-height: 1.5em; color: var(--muted); font-size: .88rem; text-align: center; }
+
+  footer { margin-top: 26px; text-align: center; color: var(--muted); font-size: .85rem; }
+
+
+  /* Brand name in the middle */
+  .brand {
+    direction: ltr;
+    font-family: "Oxanium", "Consolas", monospace;
+    font-weight: 700;
+    font-size: clamp(1.5rem, 7vw, 2.6rem);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    line-height: 1.1;
+    background: linear-gradient(100deg, var(--accent) 0%, var(--digits) 45%, var(--accent) 90%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+    filter: drop-shadow(0 0 14px color-mix(in srgb, var(--accent) 45%, transparent));
+    animation: sheen 6s ease-in-out infinite alternate;
+    padding-inline-start: .18em; /* balances trailing letter-spacing */
+  }
+  @keyframes sheen { from { background-position: 0% 50%; } to { background-position: 100% 50%; } }
+  .stage:fullscreen .brand { font-size: min(6vw, 9vh); }
+  .stage:-webkit-full-screen .brand { font-size: min(6vw, 9vh); }
+
+  /* Round theme toggle */
+  .theme-btn {
+    width: 40px; height: 40px; border-radius: 50%; flex: none;
+    display: grid; place-items: center; cursor: pointer;
+    background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+    transition: border-color .15s, transform .15s;
+  }
+  .theme-btn:hover { border-color: var(--accent); }
+  .theme-btn:active { transform: scale(.92); }
+  .theme-btn svg { width: 20px; height: 20px; }
+  .theme-btn .sun { display: none; }
+  :root[data-mode="dark"] .theme-btn .sun { display: block; }
+  :root[data-mode="dark"] .theme-btn .moon { display: none; }
+
+  header .ident { display: flex; align-items: center; gap: 10px; }
+  header .ident svg { width: 34px; height: 34px; }
+
+  footer a { color: var(--accent); font-weight: 700; text-decoration: none; border-bottom: 1px dashed currentColor; }
+  footer a:hover { border-bottom-style: solid; }
+
+  @media (max-width: 520px) {
+    .modes, .tools { grid-template-columns: 1fr; }
+    .field input { width: 64px; }
+    .btn { flex: 1 1 28%; min-width: 0; padding: 12px 8px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .clock.done { animation: none; }
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="ident">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15" fill="#0F1A26"/><circle cx="32" cy="32" r="17" fill="none" stroke="#fff" stroke-opacity=".15" stroke-width="4"/><path d="M32 15 A17 17 0 1 1 15.6 36.6" fill="none" stroke="#3AD1C4" stroke-width="4" stroke-linecap="round"/><path d="M32 32 L32 22 M32 32 L21 28" stroke="#F1F6F9" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="32" r="3" fill="#3AD1C4"/></svg>
+      <div>
+        <h1>Ultra Timer</h1>
+        <span>مؤقت بسيط للمذاكرة والشغل</span>
+      </div>
+    </div>
+    <button class="theme-btn" id="themeBtn" aria-label="تبديل بين الوضع الليلي والنهاري" title="ليلي / نهاري">
+      <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
+  </header>
+
+  <div class="modes">
+    <button class="mode" id="modeUp" aria-pressed="true">
+      <b>العد التصاعدي</b>
+      <small>ساعة إيقاف لحساب الوقت اللي عدّى</small>
+    </button>
+    <button class="mode" id="modeDown" aria-pressed="false">
+      <b>العد التنازلي</b>
+      <small>حدد وقت واعدّ لحد الصفر</small>
+    </button>
+  </div>
+
+  <section class="stage" id="stage" aria-label="المؤقت">
+    <div class="brand" id="brand">El Shahaly</div>
+    <div class="label" id="label">العد التصاعدي</div>
+    <div class="clock" id="clock" role="timer" aria-live="off">00:00:00</div>
+
+    <div class="setter" id="setter">
+      <div class="field"><input id="inH" type="number" inputmode="numeric" min="0" max="99" value="0" aria-label="ساعات"><span>ساعات</span></div>
+      <div class="sep">:</div>
+      <div class="field"><input id="inM" type="number" inputmode="numeric" min="0" max="59" value="5" aria-label="دقائق"><span>دقائق</span></div>
+      <div class="sep">:</div>
+      <div class="field"><input id="inS" type="number" inputmode="numeric" min="0" max="59" value="0" aria-label="ثواني"><span>ثواني</span></div>
+      <button class="btn set-btn" id="setBtn" style="min-width:90px">ضبط</button>
+    </div>
+
+    <div class="controls">
+      <button class="btn primary" id="startBtn">تشغيل</button>
+      <button class="btn stop" id="stopBtn" disabled>إيقاف</button>
+      <button class="btn" id="resetBtn">إعادة</button>
+    </div>
+  </section>
+
+  <div class="tools">
+    <button class="tool" id="pipBtn">
+      <b>الشاشة المصغرة</b>
+      <small>المؤقت يطفو فوق اليوتيوب والتطبيقات التانية</small>
+    </button>
+    <button class="tool" id="fsBtn">
+      <b>ملء الشاشة</b>
+      <small>تكبير كامل بدون أي تشتيت</small>
+    </button>
+  </div>
+  <div class="note" id="note" role="status"></div>
+
+  <footer>Designed &amp; Developed by <a href="https://wa.me/201090328562" target="_blank" rel="noopener noreferrer">Youssef</a></footer>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var clockEl = $('clock'), labelEl = $('label'), stage = $('stage'), noteEl = $('note');
+  var startBtn = $('startBtn'), stopBtn = $('stopBtn'), resetBtn = $('resetBtn');
+  var setter = $('setter'), inH = $('inH'), inM = $('inM'), inS = $('inS');
+
+  var mode = 'up';            // 'up' | 'down'
+  var running = false;
+  var acc = 0;                // accumulated ms while stopped
+  var startedAt = 0;          // performance.now() at last start
+  var targetMs = 5 * 60 * 1000;
+  var raf = null;
+
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function fmt(ms) {
+    var s = Math.floor(ms / 1000);
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    return pad(h) + ':' + pad(m) + ':' + pad(sec);
+  }
+  function elapsed() { return acc + (running ? performance.now() - startedAt : 0); }
+  function shown() {
+    if (mode === 'up') return elapsed();
+    return Math.max(0, targetMs - elapsed());
+  }
+  function readTarget() {
+    var h = Math.min(99, Math.max(0, parseInt(inH.value, 10) || 0));
+    var m = Math.min(59, Math.max(0, parseInt(inM.value, 10) || 0));
+    var s = Math.min(59, Math.max(0, parseInt(inS.value, 10) || 0));
+    inH.value = h; inM.value = m; inS.value = s;
+    return (h * 3600 + m * 60 + s) * 1000;
+  }
+
+  function render() {
+    var ms = shown();
+    // count down rounds up so it hits 00:00:00 exactly at the end
+    var text = mode === 'down' ? fmt(Math.ceil(ms / 1000) * 1000) : fmt(ms);
+    clockEl.textContent = text;
+    document.title = (running ? text + ' | ' : '') + 'Ultra Timer';
+    if (mode === 'down' && running && ms <= 0) finish();
+  }
+  function loop() {
+    render();
+    if (running) raf = requestAnimationFrame(loop);
+  }
+  // Keeps ticking even when the tab is hidden (PiP / other apps in front)
+  setInterval(function () { if (running) render(); }, 250);
+
+  function setUI() {
+    clockEl.classList.toggle('running', running);
+    startBtn.disabled = running;
+    stopBtn.disabled = !running;
+    labelEl.textContent = mode === 'up' ? 'العد التصاعدي' : 'العد التنازلي';
+  }
+
+  function start() {
+    if (running) return;
+    if (mode === 'down') {
+      if (shown() <= 0) { acc = 0; }
+      if (targetMs <= 0) { note('حدد وقت أكبر من صفر الأول'); return; }
+    }
+    clockEl.classList.remove('done');
+    running = true;
+    startedAt = performance.now();
+    setUI();
+    cancelAnimationFrame(raf);
+    loop();
+  }
+  function stop() {
+    if (!running) return;
+    acc += performance.now() - startedAt;
+    running = false;
+    cancelAnimationFrame(raf);
+    setUI();
+    render();
+  }
+  function reset() {
+    running = false;
+    acc = 0;
+    cancelAnimationFrame(raf);
+    clockEl.classList.remove('done');
+    setUI();
+    render();
+  }
+  function finish() {
+    acc = targetMs;
+    running = false;
+    cancelAnimationFrame(raf);
+    clockEl.classList.add('done');
+    setUI();
+    clockEl.textContent = '00:00:00';
+    beep();
+    if (navigator.vibrate) { try { navigator.vibrate([300, 150, 300]); } catch (e) {} }
+    note('انتهى الوقت');
+  }
+
+  var actx = null;
+  function beep() {
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      [0, 0.35, 0.7].forEach(function (t) {
+        var o = actx.createOscillator(), g = actx.createGain();
+        o.type = 'sine'; o.frequency.value = 880;
+        g.gain.setValueAtTime(0.0001, actx.currentTime + t);
+        g.gain.exponentialRampToValueAtTime(0.4, actx.currentTime + t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, actx.currentTime + t + 0.28);
+        o.connect(g); g.connect(actx.destination);
+        o.start(actx.currentTime + t); o.stop(actx.currentTime + t + 0.3);
+      });
+    } catch (e) {}
+  }
+
+  function setMode(m) {
+    if (m === mode) return;
+    mode = m;
+    $('modeUp').setAttribute('aria-pressed', m === 'up');
+    $('modeDown').setAttribute('aria-pressed', m === 'down');
+    setter.classList.toggle('show', m === 'down');
+    if (m === 'down') targetMs = readTarget();
+    reset();
+  }
+
+  $('modeUp').addEventListener('click', function () { setMode('up'); });
+  $('modeDown').addEventListener('click', function () { setMode('down'); });
+  startBtn.addEventListener('click', function () {
+    // unlock audio on a user gesture so the end beep can play
+    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.resume) actx.resume(); } catch (e) {}
+    start();
+  });
+  stopBtn.addEventListener('click', stop);
+  resetBtn.addEventListener('click', reset);
+  $('setBtn').addEventListener('click', function () {
+    targetMs = readTarget();
+    reset();
+    note(targetMs > 0 ? 'تم ضبط المؤقت على ' + fmt(targetMs) : 'حدد وقت أكبر من صفر');
+  });
+  [inH, inM, inS].forEach(function (el) {
+    el.addEventListener('keydown', function (e) { if (e.key === 'Enter') $('setBtn').click(); });
+  });
+
+  document.addEventListener('keydown', function (e) {
+    var tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input') return;
+    if (e.code === 'Space') { e.preventDefault(); running ? stop() : start(); }
+    else if (e.key === 'r' || e.key === 'R') reset();
+    else if (e.key === 'f' || e.key === 'F') toggleFs();
+  });
+
+  var noteTimer;
+  function note(t) {
+    noteEl.textContent = t;
+    clearTimeout(noteTimer);
+    noteTimer = setTimeout(function () { noteEl.textContent = ''; }, 4000);
+  }
+
+  /* ---------- Fullscreen ---------- */
+  function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement; }
+  function toggleFs() {
+    if (fsElement()) {
+      (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      return;
+    }
+    var req = stage.requestFullscreen || stage.webkitRequestFullscreen;
+    if (!req) { note('المتصفح ده مش بيدعم ملء الشاشة'); return; }
+    try {
+      var p = req.call(stage);
+      if (p && p.catch) p.catch(function () { note('ملء الشاشة غير متاح هنا. جرب تفتح الصفحة في تبويب لوحدها'); });
+    } catch (e) { note('ملء الشاشة غير متاح هنا'); }
+  }
+  $('fsBtn').addEventListener('click', toggleFs);
+
+  /* ---------- Picture in Picture ---------- */
+  var canvas = document.createElement('canvas');
+  canvas.width = 640; canvas.height = 360;
+  var ctx = canvas.getContext('2d');
+  var video = document.createElement('video');
+  video.muted = true; video.playsInline = true;
+  var pipTimer = null;
+
+  function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  function drawPip() {
+    var bg = cssVar('--bg') || '#0D1117';
+    var col = running ? (cssVar('--accent') || '#3AD1C4') : (cssVar('--digits') || '#fff');
+    var txt = mode === 'down' ? fmt(Math.ceil(shown() / 1000) * 1000) : fmt(shown());
+    if (clockEl.classList.contains('done')) col = cssVar('--alert') || '#f55';
+    ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = cssVar('--muted') || '#999';
+    ctx.font = '500 26px Tajawal, sans-serif';
+    ctx.fillText(mode === 'up' ? 'العد التصاعدي' : 'العد التنازلي', canvas.width / 2, 62);
+    ctx.fillStyle = col;
+    ctx.font = '700 120px Oxanium, Consolas, monospace';
+    ctx.fillText(txt, canvas.width / 2, canvas.height / 2 + 14);
+  }
+
+  async function togglePip() {
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+        return;
+      }
+      if (!document.pictureInPictureEnabled) {
+        note('المتصفح ده مش بيدعم الشاشة المصغرة. جرب Chrome أو Edge أو Safari على الكمبيوتر');
+        return;
+      }
+      drawPip();
+      if (!video.srcObject) video.srcObject = canvas.captureStream(10);
+      await video.play();
+      await video.requestPictureInPicture();
+      clearInterval(pipTimer);
+      pipTimer = setInterval(drawPip, 200);
+    } catch (e) {
+      note('تعذّر فتح الشاشة المصغرة. لو الصفحة داخل إطار، افتحها في تبويب لوحدها');
+    }
+  }
+  video.addEventListener('leavepictureinpicture', function () { clearInterval(pipTimer); });
+  $('pipBtn').addEventListener('click', togglePip);
+
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+
+
+  /* ---------- Theme (light / dark) ---------- */
+  var root = document.documentElement;
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  function currentMode() {
+    var t = root.getAttribute('data-theme');
+    if (t === 'dark' || t === 'light') return t;
+    return (mq && mq.matches) ? 'dark' : 'light';
+  }
+  function applyMode(m, save) {
+    root.setAttribute('data-theme', m);
+    root.setAttribute('data-mode', m);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', m === 'dark' ? '#0D1117' : '#F2F4F7');
+    if (save) { try { localStorage.setItem('ut-theme', m); } catch (e) {} }
+  }
+  var saved = null;
+  try { saved = localStorage.getItem('ut-theme'); } catch (e) {}
+  applyMode(saved === 'dark' || saved === 'light' ? saved : currentMode(), false);
+  $('themeBtn').addEventListener('click', function () {
+    applyMode(currentMode() === 'dark' ? 'light' : 'dark', true);
+  });
+
+  if ('serviceWorker' in navigator) { window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js').catch(function () {}); }); }
+
+  setUI();
+  render();
+})();
+</script>
+</body>
+</html>
